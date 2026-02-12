@@ -1,105 +1,161 @@
-import os
 import asyncio
 from aiogram import Bot, Dispatcher, types, F
 from aiogram.filters import Command
 from aiogram.fsm.context import FSMContext
 from aiogram.fsm.state import State, StatesGroup
 
-class Order(StatesGroup):
-    lang = State()
-    waiting_for_topic = State()
-    waiting_for_pages = State()
-    confirming = State()
+# --- KONFIGURATSIYA ---
+TOKEN = "8185440589:AAH-QOBqKunLzLQvYmhGt8osUOKXeR4gd8E"
+ADMIN_ID = 8239382195
+CARD_NUMBER = "9860 1966 0027 8234"
+ADMIN_USERNAME = "@kvonyeon"
+CHANNEL_LINK = "@zar_isbot"
 
-TOKEN = os.getenv("8185440589:AAH-QOBqKunLzLQvYmhGt8osUOKXeR4gd8E")
-ADMIN_ID = 8239382195 # Твой ID
-CARD_NUMBER = "9860 1966 0027 8234" # Твоя карта
 bot = Bot(token=TOKEN)
 dp = Dispatcher()
 
-# Цены и тексты
-PRICES = {'btn_pres': 15000, 'btn_kurs': 20000, 'btn_sam': 15000} #
+class Order(StatesGroup):
+    lang = State()
+    section = State()
+    waiting_for_topic = State()
+    waiting_for_pages = State()
+    waiting_for_desc = State()
+    waiting_for_payment = State()
 
+# --- MATNLAR VA NARXLAR ---
 MESSAGES = {
     'uz': {
-        'services': "Xizmatni tanlang:",
+        'start': "Assalomu alaykum! Tilni tanlang:",
+        'menu': "Bo'limni tanlang:",
         'topic': "Mavzu nima haqida?",
         'pages': "Necha varaq bo'lishi kerak?",
-        'check': "Ma'lumotlar to'g'rimi?\nXizmat: {service}\nMavzu: {topic}\nVaraqlar: {pages}",
-        'confirm_btn': "Hammasi to'g'ri ✅",
-        'pay': "To'lov miqdori: {price} so'm.\nBuyurtma to'lovdan so'ng boshlanadi.\nKarta: {card}\nSkrinshotni adminga yuboring: @kvonyeon\nIsbotlar: @zar_isbot",
-        'btn_pres': "Prezentatsiya", 'btn_kurs': "Kursovoy", 'btn_sam': "Mustaqil ish"
+        'it_desc': "Bot yoki Saytni qanday maqsadda yaratmoqchisiz?",
+        'it_resp': "Yaqin orada admin sizga shaxsiy xabarda javob beradi!",
+        'tech_desc': "Muammoingiz nimadan iborat?",
+        'tech_resp': "Admin tez orada sizga javob beradi!",
+        'payment': "💳 To'lov: {price} so'm\n\nKarta: `{card}`\n\nTo'lovni amalga oshiring va skrinshotni yuboring. Buyurtma tasdiqlangach, loyihangiz boshlanadi.\n\nIsbotlar: {channel}\nAdmin: {admin}",
+        'screenshot_received': "Skrinshot qabul qilindi! ✅ Admin tasdiqlashi bilan loyihani boshlaymiz.",
+        'sections': ["📊 Prezentatsiya", "📚 Kurs ishi / Mustaqil ish", "🤖 Bot yaratish", "🌐 Sayt yaratish", "🛠 PK/Tel yordam", "👨‍💻 Admin bilan bog'lanish"]
     },
     'ru': {
-        'services': "Выберите услугу:",
-        'topic': "На какую тему?",
-        'pages': "Сколько листов должно быть?",
-        'check': "Все верно?\nУслуга: {service}\nТема: {topic}\nЛистов: {pages}",
-        'confirm_btn': "Все правильно ✅",
-        'pay': "Сумма к оплате: {price} сум.\nЗаказ будет начат после оплаты.\nКарта: {card}\nОтправьте скриншот админу: @kvonyeon\nДоказательства: @zar_isbot",
-        'btn_pres': "Презентация", 'btn_kurs': "Курсовая", 'btn_sam': "Самостоятельная"
+        'start': "Здравствуйте! Выберите язык:",
+        'menu': "Выберите раздел:",
+        'topic': "Какая тема работы?",
+        'pages': "Сколько листов нужно?",
+        'it_desc': "Для каких целей вы хотите создать Бота или Сайт?",
+        'it_resp': "В ближайшее время админ ответит вам в личные сообщения!",
+        'tech_desc': "Какая у вас проблема?",
+        'tech_resp': "Админ ответит вам скоро!",
+        'payment': "💳 К оплате: {price} сум\n\nКарта: `{card}`\n\nПополните баланс и отправьте скриншот. После подтверждения мы начнем ваш проект.\n\nКанал доверия: {channel}\nАдмин: {admin}",
+        'screenshot_received': "Скриншот принят! ✅ Когда админ подтвердит его, мы начнем ваш проект.",
+        'sections': ["📊 Презентация", "📚 Курсовая / Самостоятельная", "🤖 Создать бота", "🌐 Создать сайт", "🛠 Помощь ПК/Тел", "👨‍💻 Связь с админом"]
+    },
+    'en': {
+        'start': "Welcome! Select language:",
+        'menu': "Choose a section:",
+        'topic': "What is the topic?",
+        'pages': "How many pages?",
+        'it_desc': "For what purposes do you want to create a Bot or Website?",
+        'it_resp': "Admin will contact you shortly!",
+        'tech_desc': "Describe your problem:",
+        'tech_resp': "Admin will answer you soon!",
+        'payment': "💳 Price: {price} UZS\n\nCard: `{card}`\n\nPlease pay and send a screenshot. We will start your project after confirmation.\n\nProof channel: {channel}\nAdmin: {admin}",
+        'screenshot_received': "Screenshot received! ✅ Admin will notify you and we will start the project.",
+        'sections': ["📊 Presentation", "📚 Coursework / Independent work", "🤖 Create a Bot", "🌐 Create a Website", "🛠 PC/Phone Help", "👨‍💻 Contact Admin"]
     }
 }
 
-# Клавиатуры
-def get_lang_kb():
-    return types.ReplyKeyboardMarkup(keyboard=[[types.KeyboardButton(text="🇺🇿 O'zbekcha"), types.KeyboardButton(text="🇷🇺 Русский")]], resize_keyboard=True)
+# --- KLAVIATURALAR ---
+def lang_kb():
+    return types.ReplyKeyboardMarkup(keyboard=[[types.KeyboardButton(text="🇺🇿 O'zbekcha"), types.KeyboardButton(text="🇷🇺 Русский"), types.KeyboardButton(text="🇬🇧 English")]], resize_keyboard=True)
 
-def get_confirm_kb(lang):
-    return types.ReplyKeyboardMarkup(keyboard=[[types.KeyboardButton(text=MESSAGES[lang]['confirm_btn'])]], resize_keyboard=True)
-
-@dp.message(Command("start"))
-async def cmd_start(message: types.Message, state: FSMContext):
-    await state.clear()
-    await message.answer("Tilni tanlang / Выберите язык:", reply_markup=get_lang_kb())
-
-@dp.message(F.text.in_(["🇺🇿 O'zbekcha", "🇷🇺 Русский"]))
-async def set_lang(message: types.Message, state: FSMContext):
-    lang = 'uz' if "O'zbekcha" in message.text else 'ru'
-    await state.update_data(lang=lang)
-    kb = types.ReplyKeyboardMarkup(keyboard=[
-        [types.KeyboardButton(text=MESSAGES[lang]['btn_pres']), types.KeyboardButton(text=MESSAGES[lang]['btn_kurs'])],
-        [types.KeyboardButton(text=MESSAGES[lang]['btn_sam'])]
+def main_menu(lang):
+    sections = MESSAGES[lang]['sections']
+    return types.ReplyKeyboardMarkup(keyboard=[
+        [types.KeyboardButton(text=sections[0]), types.KeyboardButton(text=sections[1])],
+        [types.KeyboardButton(text=sections[2]), types.KeyboardButton(text=sections[3])],
+        [types.KeyboardButton(text=sections[4]), types.KeyboardButton(text=sections[5])]
     ], resize_keyboard=True)
-    await message.answer(MESSAGES[lang]['services'], reply_markup=kb)
 
-@dp.message(lambda m: any(m.text == MESSAGES[l][k] for l in MESSAGES for k in ['btn_pres', 'btn_kurs', 'btn_sam']))
-async def start_order(message: types.Message, state: FSMContext):
+# --- XENDLERLAR ---
+@dp.message(Command("start"))
+async def cmd_start(m: types.Message, state: FSMContext):
+    await state.clear()
+    await m.answer(MESSAGES['ru']['start'], reply_markup=lang_kb())
+
+@dp.message(F.text.in_(["🇺🇿 O'zbekcha", "🇷🇺 Русский", "🇬🇧 English"]))
+async def set_lang(m: types.Message, state: FSMContext):
+    lang = 'uz' if "O'z" in m.text else 'ru' if "Рус" in m.text else 'en'
+    await state.update_data(lang=lang)
+    await m.answer(MESSAGES[lang]['menu'], reply_markup=main_menu(lang))
+
+@dp.message(lambda m: any(m.text in MESSAGES[l]['sections'] for l in MESSAGES))
+async def handle_sections(m: types.Message, state: FSMContext):
     data = await state.get_data()
     lang = data.get('lang', 'ru')
-    # Определяем ключ услуги для цены
-    service_key = next(k for k in ['btn_pres', 'btn_kurs', 'btn_sam'] if MESSAGES[lang][k] == message.text)
-    await state.update_data(service=message.text, price=PRICES[service_key])
-    await message.answer(MESSAGES[lang]['topic'])
-    await state.set_state(Order.waiting_for_topic)
+    sec = m.text
+    
+    if sec in [MESSAGES[lang]['sections'][0], MESSAGES[lang]['sections'][1]]: # Pres yoki Kurs/Mustaqil
+        price = 15000 if sec == MESSAGES[lang]['sections'][0] else 20000
+        await state.update_data(section=sec, price=price)
+        await m.answer(MESSAGES[lang]['topic'])
+        await state.set_state(Order.waiting_for_topic)
+    
+    elif sec in [MESSAGES[lang]['sections'][2], MESSAGES[lang]['sections'][3]]: # Bot/Sayt
+        await state.update_data(section=sec)
+        await m.answer(MESSAGES[lang]['it_desc'])
+        await state.set_state(Order.waiting_for_desc)
+        
+    elif sec == MESSAGES[lang]['sections'][4]: # PK Yordam
+        await state.update_data(section=sec)
+        await m.answer(MESSAGES[lang]['tech_desc'])
+        await state.set_state(Order.waiting_for_desc)
+    
+    else: # Admin
+        await m.answer(f"Admin: {ADMIN_USERNAME}")
 
 @dp.message(Order.waiting_for_topic)
-async def get_topic(message: types.Message, state: FSMContext):
+async def get_topic(m: types.Message, state: FSMContext):
     data = await state.get_data()
-    lang = data.get('lang', 'ru')
-    await state.update_data(topic=message.text)
-    await message.answer(MESSAGES[lang]['pages'])
+    await state.update_data(topic=m.text)
+    await m.answer(MESSAGES[data['lang']]['pages'])
     await state.set_state(Order.waiting_for_pages)
 
 @dp.message(Order.waiting_for_pages)
-async def show_check(message: types.Message, state: FSMContext):
+async def get_pages(m: types.Message, state: FSMContext):
     data = await state.get_data()
-    lang = data.get('lang', 'ru')
-    await state.update_data(pages=message.text)
-    text = MESSAGES[lang]['check'].format(service=data['service'], topic=data['topic'], pages=message.text)
-    await message.answer(text, reply_markup=get_confirm_kb(lang))
-    await state.set_state(Order.confirming)
+    lang = data['lang']
+    await state.update_data(pages=m.text)
+    txt = MESSAGES[lang]['payment'].format(price=data['price'], card=CARD_NUMBER, channel=CHANNEL_LINK, admin=ADMIN_USERNAME)
+    await m.answer(txt, parse_mode="Markdown")
+    await state.set_state(Order.waiting_for_payment)
 
-@dp.message(Order.confirming, lambda m: any(m.text == MESSAGES[l]['confirm_btn'] for l in MESSAGES))
-async def send_payment(message: types.Message, state: FSMContext):
+@dp.message(Order.waiting_for_desc)
+async def get_desc(m: types.Message, state: FSMContext):
     data = await state.get_data()
-    lang = data.get('lang', 'ru')
-    # Отправка данных админу
-    admin_text = f"✅ ПОДТВЕРЖДЕННЫЙ ЗАКАЗ:\n{data['service']}\nТема: {data['topic']}\nЛистов: {data['pages']}\nОт: @{message.from_user.username}"
-    await bot.send_message(ADMIN_ID, admin_text)
-    # Сообщение об оплате пользователю
-    pay_text = MESSAGES[lang]['pay'].format(price=data['price'], card=CARD_NUMBER)
-    await message.answer(pay_text, reply_markup=types.ReplyKeyboardRemove())
+    lang = data['lang']
+    # Adminga yuborish
+    admin_info = f"📩 SO'ROV: {data['section']}\nMaqsad: {m.text}\nMijoz: @{m.from_user.username}"
+    await bot.send_message(ADMIN_ID, admin_info)
+    resp = MESSAGES[lang]['it_resp'] if "Bot" in data['section'] or "Sayt" in data['section'] else MESSAGES[lang]['tech_resp']
+    await m.answer(resp)
+    await state.clear()
+
+@dp.message(Order.waiting_for_payment, F.photo)
+async def get_screenshot(m: types.Message, state: FSMContext):
+    data = await state.get_data()
+    # Adminga buyurtmani yuborish
+    username = f"@{m.from_user.username}" if m.from_user.username else "No Username"
+    info = (f"🔥 YANGI BUYURTMA!\n\n"
+            f"Turi: {data['section']}\n"
+            f"Mavzu: {data['topic']}\n"
+            f"Varaqlar: {data['pages']}\n"
+            f"Narxi: {data['price']} so'm\n"
+            f"Mijoz: {username}\n"
+            f"ID: [{m.from_user.id}](tg://user?id={m.from_user.id})")
+    
+    await bot.send_photo(ADMIN_ID, m.photo[-1].file_id, caption=info, parse_mode="Markdown")
+    await m.answer(MESSAGES[data['lang']]['screenshot_received'])
     await state.clear()
 
 async def main():
