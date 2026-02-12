@@ -11,7 +11,7 @@ class Order(StatesGroup):
     waiting_for_pages = State()
     confirming = State()
 
-TOKEN = os.getenv("BOT_TOKEN")
+TOKEN = os.getenv("8185440589:AAH-QOBqKunLzLQvYmhGt8osUOKXeR4gd8E")
 ADMIN_ID = 8239382195 # Твой ID
 CARD_NUMBER = "9860 1966 0027 8234" # Твоя карта
 bot = Bot(token=TOKEN)
