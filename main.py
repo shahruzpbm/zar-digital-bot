@@ -15,7 +15,7 @@ CHANNEL_LINK = "@zar_isbot"
 bot = Bot(token=TOKEN)
 dp = Dispatcher()
 
-# --- BAZA BILAN ISHLASH (Foydalanuvchilarni saqlash) ---
+# --- BAZA BILAN ISHLASH (Xabar tarqatish uchun) ---
 db = sqlite3.connect("users.db")
 cur = db.cursor()
 cur.execute("CREATE TABLE IF NOT EXISTS users (id INTEGER PRIMARY KEY)")
@@ -33,7 +33,7 @@ class Order(StatesGroup):
 # --- MATNLAR ---
 MESSAGES = {
     'uz': {
-        'start': "Assalomu alaykum! Tilni tanlang:",
+        'start': "Assalomu alaykum! Tilni tanlang / Выберите язык / Select language:",
         'menu': "Bo'limni tanlang:",
         'topic': "Mavzu nima haqida?",
         'pages': "Necha varaq bo'lishi kerak?",
@@ -41,20 +41,20 @@ MESSAGES = {
         'it_resp': "Yaqin orada admin sizga shaxsiy xabarda javob beradi!",
         'tech_ask': "Qanday muammoingiz bor?",
         'tech_resp': "Admin tez orada javob beradi!",
-        'pay_info': "💰 <b>Xizmat narxi: {price} so'm</b>\n\n💳 Karta: <code>{card}</code>\n\n❗️ To'lovni qiling va skrinshotni yuboring. Buyurtma tasdiqlangach, loyihangiz boshlanadi.\n\n📚 Namunalar: {channel}\n👨‍💻 Admin: {admin}",
-        'done': "Skrinshot qabul qilindi! ✅ Admin tasdiqlashi bilan loyihani boshlaymiz.",
+        'pay_info': "💰 <b>Narxi: {price} so'm</b>\n\n💳 Karta: <code>{card}</code>\n\nTo'lovni qiling va skrinshotni yuboring.\n\n📚 Namunalar: {channel}\n👨‍💻 Admin: {admin}",
+        'done': "Skrinshot qabul qilindi! ✅ Admin tasdiqlashi bilan loyihangiz boshlanadi.",
         'btns': ["📊 Prezentatsiya", "📚 Kurs ishi / Mustaqil ish", "🤖 Bot yaratish", "🌐 Sayt yaratish", "🛠 PK/Tel yordam", "👨‍💻 Admin bilan aloqa"]
     },
     'ru': {
-        'start': "Здравствуйте! Выберите язык:",
+        'start': "Здравствуйте! Выберите язык / Select language:",
         'menu': "Выберите раздел:",
-        'topic': "Какая тема работы?",
+        'topic': "На какую тему работа?",
         'pages': "Сколько листов нужно?",
         'it_ask': "Для каких целей вы хотите создать?",
         'it_resp': "В ближайшее время админ ответит вам в личные сообщения!",
         'tech_ask': "Какая у вас проблема?",
         'tech_resp': "Админ ответит вам скоро!",
-        'pay_info': "💰 <b>Стоимость: {price} сум</b>\n\n💳 Карта: <code>{card}</code>\n\n❗️ Пополните баланс и отправьте скриншот сюда. После подтверждения мы начнем ваш проект.\n\n📚 Канал доверия: {channel}\n👨‍💻 Admin: {admin}",
+        'pay_info': "💰 <b>Стоимость: {price} сум</b>\n\n💳 Карта: <code>{card}</code>\n\nПополните баланс и отправьте скриншот сюда.\n\n📚 Канал доверия: {channel}\n👨‍💻 Admin: {admin}",
         'done': "Скриншот принят! ✅ Когда админ подтвердит его, мы начнем ваш проект.",
         'btns': ["📊 Презентация", "📚 Курсовая / Самостоятельная", "🤖 Создать бота", "🌐 Создать сайт", "🛠 Помощь ПК/Тел", "👨‍💻 Связь с админом"]
     },
@@ -67,7 +67,7 @@ MESSAGES = {
         'it_resp': "Admin will contact you shortly!",
         'tech_ask': "What is your problem?",
         'tech_resp': "Admin will answer you soon!",
-        'pay_info': "💰 <b>Price: {price} UZS</b>\n\n💳 Card: <code>{card}</code>\n\n❗️ Please pay and send the screenshot here.\n\n📚 Proofs: {channel}\n👨‍💻 Admin: {admin}",
+        'pay_info': "💰 <b>Price: {price} UZS</b>\n\n💳 Card: <code>{card}</code>\n\nPlease pay and send the screenshot here.\n\n📚 Proofs: {channel}\n👨‍💻 Admin: {admin}",
         'done': "Screenshot received! ✅ Admin will start the project after confirmation.",
         'btns': ["📊 Presentation", "📚 Coursework / Independent work", "🤖 Create a Bot", "🌐 Create a Website", "🛠 PC/Phone Help", "👨‍💻 Contact Admin"]
     }
@@ -97,7 +97,7 @@ async def do_broadcast(m: types.Message, state: FSMContext):
             await bot.send_message(user[0], m.text)
             count += 1
         except: continue
-    await m.answer(f"Xabar {count} ta foydalanuvchiga muvaffaqiyatli yuborildi! ✅")
+    await m.answer(f"Xabar {count} ta foydalanuvchiga yuborildi! ✅")
     await state.clear()
 
 # --- ASOSIY LOGIKA ---
@@ -120,19 +120,25 @@ async def handle_menu(m: types.Message, state: FSMContext):
     l = data.get('lang', 'ru')
     btn = m.text
     
-    # Har bir bo'limni aniq tekshirish
-    if btn == MESSAGES[l]['btns'][0] or btn == MESSAGES[l]['btns'][1]:
-        p = 15000 if btn == MESSAGES[l]['btns'][0] else 20000
-        await state.update_data(section=btn, price=p)
+    # Har bir til uchun tugmalarni to'g'ri tekshirish
+    if btn in [MESSAGES['uz']['btns'][0], MESSAGES['ru']['btns'][0], MESSAGES['en']['btns'][0]]: # Pres
+        await state.update_data(section=btn, price=15000)
         await m.answer(MESSAGES[l]['topic'])
         await state.set_state(Order.waiting_for_topic)
-    elif btn == MESSAGES[l]['btns'][2] or btn == MESSAGES[l]['btns'][3] or btn == MESSAGES[l]['btns'][4]:
+    elif btn in [MESSAGES['uz']['btns'][1], MESSAGES['ru']['btns'][1], MESSAGES['en']['btns'][1]]: # Kurs
+        await state.update_data(section=btn, price=20000)
+        await m.answer(MESSAGES[l]['topic'])
+        await state.set_state(Order.waiting_for_topic)
+    elif btn in [MESSAGES['uz']['btns'][2], MESSAGES['ru']['btns'][2], MESSAGES['en']['btns'][2],
+                MESSAGES['uz']['btns'][3], MESSAGES['ru']['btns'][3], MESSAGES['en']['btns'][3],
+                MESSAGES['uz']['btns'][4], MESSAGES['ru']['btns'][4], MESSAGES['en']['btns'][4]]: # IT / Tech
         await state.update_data(section=btn)
-        q = MESSAGES[l]['it_ask'] if btn != MESSAGES[l]['btns'][4] else MESSAGES[l]['tech_ask']
+        is_it = "Bot" in btn or "Sayt" in btn or "Web" in btn or "🤖" in btn or "🌐" in btn
+        q = MESSAGES[l]['it_ask'] if is_it else MESSAGES[l]['tech_ask']
         await m.answer(q)
         await state.set_state(Order.waiting_for_desc)
-    else:
-        await m.answer(f"👨‍💻 Admin: {ADMIN_USERNAME}")
+    else: # Admin
+        await m.answer(f"👨‍💻 Admin bilan bog'lanish: {ADMIN_USERNAME}")
 
 @dp.message(Order.waiting_for_topic)
 async def get_topic(m: types.Message, state: FSMContext):
@@ -152,9 +158,11 @@ async def get_pages(m: types.Message, state: FSMContext):
 @dp.message(Order.waiting_for_desc)
 async def get_desc(m: types.Message, state: FSMContext):
     data = await state.get_data()
-    user_link = f"@{m.from_user.username}" if m.from_user.username else f"ID: {m.from_user.id}"
-    await bot.send_message(ADMIN_ID, f"📩 <b>SO'ROV: {data['section']}</b>\nKimdan: {user_link}\nMa'lumot: {m.text}", parse_mode="HTML")
-    await m.answer(MESSAGES[data['lang']]['it_resp'] if "🤖" in data['section'] or "🌐" in data['section'] else MESSAGES[data['lang']]['tech_resp'])
+    l = data['lang']
+    user = f"@{m.from_user.username}" if m.from_user.username else f"ID: {m.from_user.id}"
+    await bot.send_message(ADMIN_ID, f"📩 <b>YANGI SO'ROV:</b>\nBo'lim: {data['section']}\nMijoz: {user}\nMa'lumot: {m.text}", parse_mode="HTML")
+    is_it = "Bot" in data['section'] or "Sayt" in data['section'] or "Web" in data['section'] or "🤖" in data['section'] or "🌐" in data['section']
+    await m.answer(MESSAGES[l]['it_resp'] if is_it else MESSAGES[l]['tech_resp'])
     await state.clear()
 
 @dp.message(Order.waiting_for_payment, F.photo)
